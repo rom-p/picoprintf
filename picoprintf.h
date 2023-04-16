@@ -20,16 +20,14 @@ inline int pico_sprintf(char *pDest, const char *pFormat, ...) {
 
 //
 // IMPORTANT!!!
-//  uncomment the following lines corresponding to the features you need
+//  comment/uncomment the following lines corresponding to the features you need
 //
-#define PICOFORMAT_HANDLE_FILL          // uncomment this line to handle "%6i" and "%04d" -- the fill with zeroes or spaces
-#define PICOFORMAT_HANDLE_FORCEDSIGN    // uncomment this line to handle "%+d" -- the forced sign placement
-#define PICOFORMAT_HANDLE_BIN           // uncomment this line to handle "%b" -- binary representation
-#define PICOFORMAT_HANDLE_OCT           // uncomment this line to handle "%o"
-#define PICOFORMAT_HANDLE_HEX           // uncomment this line to handle "%x" and "%X"
-#define PICOFORMAT_HANDLE_FLOATS        // uncomment this line to handle the "%f"
-// #define PICOFORMAT_HANDLE_WCHAR_T       // not implemented yet. MS Visual Studio compiler uses "%S" to render strings of opposite bittness (8-bit vs. 16-bit)
-
+// #define PICOFORMAT_HANDLE_FILL          // uncomment this line to handle "%6i" and "%04d" -- the fill with zeroes or spaces
+// #define PICOFORMAT_HANDLE_FORCEDSIGN    // uncomment this line to handle "%+d" -- the forced sign placement
+// #define PICOFORMAT_HANDLE_BIN           // uncomment this line to handle "%b" -- binary representation
+// #define PICOFORMAT_HANDLE_OCT           // uncomment this line to handle "%o"
+// #define PICOFORMAT_HANDLE_HEX           // uncomment this line to handle "%x" and "%X"
+// #define PICOFORMAT_HANDLE_FLOATS        // uncomment this line to handle the "%f"
 
 
 // by default, the debug builds (determined by `#define _DEBUG`) will real-time print errors when a feature is used that is not enabled above

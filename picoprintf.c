@@ -84,10 +84,6 @@ int pico_vsnprintf(char *pDest, size_t cbDest, const char *pFormat, va_list vl) 
                     case 'u':    // unsigned modifier
                         treat_as_unsigned = true;
                         break;
-                #ifdef PICOFORMAT_HANDLE_WCHAR_T
-                    case 'C':    // string of opposite encoding char (i.e., `wchar_t`s)
-                        break;
-                #endif // PICOFORMAT_HANDLE_WCHAR_T
                 #ifdef PICOFORMAT_HANDLE_BIN
                     case 'b':
                         bits_per_digit = 0;
@@ -122,14 +118,10 @@ int pico_vsnprintf(char *pDest, size_t cbDest, const char *pFormat, va_list vl) 
                     case 'e':   // floating point, exponent format
                 #endif // PICOFORMAT_HANDLE_EXPONENTS
                     case 'f':
-                    case 'g':
                         render_in_lowercase = true;
                         // fall through
                     case 'F': 
-                #endif
-                #ifdef PICOFORMAT_HANDLE_WCHAR_T
-                    case 'S':    // string of opposite encoding chars (i.e., `wchar_t`s)
-                #endif // PICOFORMAT_HANDLE_WCHAR_T
+                #endif // PICOFORMAT_HANDLE_FLOATS
                     case 'c':  // single char: always supported
                     case 'd':  // integer: always supported
                     case 'i':  // integer: always supported
@@ -237,7 +229,7 @@ int pico_vsnprintf(char *pDest, size_t cbDest, const char *pFormat, va_list vl) 
                     }
                     break;
             #ifdef PICOFORMAT_HANDLE_FLOATS
-                case 'f': case 'F': case 'g': {
+                case 'f': case 'F': {
                         double val = va_arg(vl, double);
                         if (force_sign || val < 0.f) {
                             *pDest++ = val < 0.f ? '-' : '+';
