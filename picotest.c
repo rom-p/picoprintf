@@ -1,5 +1,6 @@
 #include "picoprintf.h"
 
+#include <stdbool.h>
 #include <stdio.h>  // printf() for messages and snprintf() for comparison
 #include <string.h> // strcmp()
 #include <stdlib.h> // rand() and srand()
@@ -38,7 +39,7 @@ bool g_verbose = false;
 #include "tinyprintf.h"
 #include "nanoprintf.h"
 // mpaland's printf requires this function:
-extern "C" void putchar(char character) {}
+void _putchar(char character) {}
 #endif //__RUN_COMPARISON_TESTS__
 
 
@@ -63,7 +64,7 @@ const char* g_pIntegerFormats[] = {
     "%+d",
 #endif // PICOFORMAT_HANDLE_FORCEDSIGN
 
-    nullptr  // keep it last
+    NULL  // keep it last
 };
 
 int g_testIntegers[] = {
@@ -75,7 +76,7 @@ int g_testIntegers[] = {
 
 const char* g_pFloatFormats[] = {
     "%f", "%3.2f", "%F", "text %.2f here",
-    nullptr  // keep it last
+    NULL  // keep it last
 };
 
 float g_testFloats[] = {
@@ -96,7 +97,7 @@ int main(int argc, const char ** argv) {
 
     srand((unsigned)time(NULL));
 
-    for (const char **ppFormat = g_pIntegerFormats; nullptr != *ppFormat; ppFormat++) {
+    for (const char **ppFormat = g_pIntegerFormats; NULL != *ppFormat; ppFormat++) {
         for (size_t ii = 0; ii < sizeof(g_testIntegers) / sizeof(g_testIntegers[0]); ii++) {
             RUN_TEST(*ppFormat, g_testIntegers[ii]);
         }
@@ -107,7 +108,7 @@ int main(int argc, const char ** argv) {
     }
 
 #ifdef PICOFORMAT_HANDLE_FLOATS
-    for (const char **ppFormat = g_pFloatFormats; nullptr != *ppFormat; ppFormat++) {
+    for (const char **ppFormat = g_pFloatFormats; NULL != *ppFormat; ppFormat++) {
         for (size_t ii = 0; ii < sizeof(g_testFloats) / sizeof(g_testFloats[0]); ii++) {
             RUN_TEST(*ppFormat, g_testFloats[ii]);
         }

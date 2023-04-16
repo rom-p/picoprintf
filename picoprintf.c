@@ -1,7 +1,8 @@
 #include "picoprintf.h"
 
-#include <stdlib.h>  // abs()
 #include <math.h>    // fabs()
+#include <stdbool.h> // bool
+#include <stdlib.h>  // abs()
 
 
 static void flip(char *pLeft, char *pRight) {
@@ -237,7 +238,7 @@ int pico_vsnprintf(char *pDest, size_t cbDest, const char *pFormat, va_list vl) 
                     break;
             #ifdef PICOFORMAT_HANDLE_FLOATS
                 case 'f': case 'F': case 'g': {
-                        double val = va_arg(vl, float);
+                        double val = va_arg(vl, double);
                         if (force_sign || val < 0.f) {
                             *pDest++ = val < 0.f ? '-' : '+';
                             val = fabs(val);
@@ -266,7 +267,7 @@ int pico_vsnprintf(char *pDest, size_t cbDest, const char *pFormat, va_list vl) 
                             flip(pParamStarts, pDest);
                             if (decimal_chars && pDest < pEnd) {
                                 *pDest++ = '.';
-                                val += .5 * pow(10, -decimal_chars); // compensating for rounding error
+                                val += .5f * pow(10.f, -decimal_chars); // compensating for rounding error
                                 for (size_t digit = 0; pDest < pEnd && digit < decimal_chars; digit++) {
                                     val = (val - (int)(val)) * 10.f;
                                     *pDest++ = (int)(val) + '0';
