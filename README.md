@@ -7,22 +7,19 @@
 
 Please note the actual values depend on the exact compiler used, build-time parameters and other variables.  Thus, the values below are better treated as relative and not absolute.
 
-https://github.com/mpaland/printf
-https://github.com/cjlano/tinyprintf
-https://github.com/charlesnicholson/nanoprintf
-
-|    target      | **picoprintf** minimum | **picoprintf** full | mpaland | tinyprintf | nanoprintf |
+Code size of this and similar libraries, in bytes:
+|    target      | **picoprintf** minimum | **picoprintf** full | <a href="https://github.com/mpaland/printf">mpaland</a> | <a href="https://github.com/cjlano/tinyprintf">tinyprintf</a> | <a href="https://github.com/charlesnicholson/nanoprintf">nanoprintf</a> |
 | ---: | :---: | :---: | :---: | :---: | :---: |
  ARM Thumb gcc  |  526 | 1084 |
  ARM 32 gcc     |
  ARM 64 gcc     |
- ARM 64 clang   |  844 | 2039 | 5846 | 2401 | 4066 |
+ ARM 64 clang   |  844 | 2040 | 5846 | 2401 | 4066 |
  x86 gcc        |
  x86 msvc       |
  x64 gcc        |
  x64 msvc       |
 
- all values are collected by compiling with `-Os` flag
+all values are collected by compiling with `-Os` flag
 
 # <a href="usage">Usage</a>
 1. copy `picoprint.h` and `picoprintf.cpp` into your project
@@ -58,10 +55,3 @@ To calculate the size of the module:
 `gcc picoprintf.cpp picotest.cpp -Os -Wl,-Map,pico.map`
 
 ## Windows
-
-# DELETEME
-// possible names:
-// tiny
-// micro
-// nano
-// pico

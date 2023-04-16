@@ -5,10 +5,17 @@
 #include <stdarg.h>  // va_*
 
 
-
-int pico_vsnprintf(char *pDest, size_t cbDest, const char *pFormat, va_list vl);
 int pico_snprintf(char *pDest, size_t cbDest, const char *pFormat, ...);
+int pico_vsnprintf(char *pDest, size_t cbDest, const char *pFormat, va_list vl);
 
+// PLEASE use `pico_snprintf()` instead!!!  This function can lead to buffer overflows
+inline int pico_sprintf(char *pDest, const char *pFormat, ...) {
+    va_list vl;
+    va_start(vl, pFormat);
+    int result = pico_vsnprintf(pDest, -1, pFormat, vl);
+    va_end(vl);
+    return result;
+}
 
 
 //
