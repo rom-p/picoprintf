@@ -2,7 +2,7 @@
 
 #include <stdbool.h>
 #include <stdio.h>  // printf() for messages and snprintf() for comparison
-#include <string.h> // strcmp()
+#include <string.h> // strcmp(), strstr()
 #include <stdlib.h> // rand() and srand()
 #include <time.h>   // time
 #include <math.h>   // INFINITY, NaN, etc.
@@ -13,18 +13,18 @@
 // * non-existing formats, like "%q"
 
 
-char pFullBuf[0x200];
+char pStdBuf[0x200];
 char pPicoBuf[0x200];
 
 bool g_verbose = false;
 
 
 #define RUN_TEST(format, ...) \
-    snprintf(pFullBuf, 0x200, format, __VA_ARGS__); \
+    snprintf(pStdBuf, 0x200, format, __VA_ARGS__); \
     pico_snprintf(pPicoBuf, 0x200, format, __VA_ARGS__); \
-    failed = strcmp(pFullBuf, pPicoBuf); \
+    failed = strcmp(pStdBuf, pPicoBuf); \
     if (g_verbose || failed) { \
-        printf("picoprintf %s  \"%s\", -- %s, %s\n", failed ? "FAILED" : "passed", format, pFullBuf, pPicoBuf); \
+        printf("picoprintf %s  \"%s\", -- stdlib result: \"%s\", picoprintf result: \"%s\"\n", failed ? "FAILED" : "passed", format, pStdBuf, pPicoBuf); \
     } \
     if (failed) { \
         picofailures++; \
@@ -75,7 +75,7 @@ int g_testIntegers[] = {
 
 
 const char* g_pFloatFormats[] = {
-    "%f", "%3.2f", "%F", "text %.2f here",
+    "%f", "%3.2f", "%F", "%+f", "%+F", "text %.2f here",
     NULL  // keep it last
 };
 

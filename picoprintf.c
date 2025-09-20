@@ -1,109 +1,8 @@
 #include "picoprintf.h"
+#include "picoatox.h"
 
 #include <math.h>    // fabs()
-#include <stdbool.h> // bool
-#include <stdlib.h>  // abs()
-
-#include <stdio.h>
-
-
-int pico_atoi(const char *pStr) {
-    long long result = 0;
-    int base = 10;
-    int sign = 1;
-
-    if ('-' == *pStr) {
-        sign = -1;
-        pStr++;
-    }
-    if ('0' == *pStr) { // bin, oct, or hex
-        pStr++;
-        switch (*pStr) {
-        case 'b':
-            base = 2;
-            pStr++;
-            break;
-        case 'x':
-            base = 16;
-            pStr++;
-            break;
-        default:
-            base = 8;
-            break;
-        }
-    }
-    for (const char *pCur = pStr; *pCur; pCur++) {
-        if ((base == 2 && *pCur >= '0' && *pCur <= '1')
-         || (base == 8 && *pCur >= '0' && *pCur <= '7')
-         || (base == 10 && *pCur >= '0' && *pCur <= '9')
-         || (base == 16 && ((*pCur >= '0' && *pCur <= '9') || (*pCur >= 'a' && *pCur <= 'f') || (*pCur >= 'A' && *pCur <= 'F')))) {
-            if (base == 16 && *pCur > '9') {
-                result = result * base + (*pCur & 0xdf) - 'A' + 0x10;
-            } else {
-                result = result * base + *pCur - '0';
-            }
-        } else {
-            break;
-        }
-    }
-    return sign * result;
-}
-
-
-float pico_atof(const char* pStr) {
-    bool still_valid = true;
-    bool seen_period = false;
-    bool seen_number = false;
-    bool seen_e = false;
-    bool negative = false;
-    bool negative_exponent = false;
-
-    int whole = 0;
-    int decimal = 0;
-    int decimal_digits = 0;
-    int exponent = 0;
-
-    for (const char *pCur = pStr; still_valid && *pCur; pCur++) {
-        switch (*pCur) {
-        case '-':
-            if (!seen_number && !seen_period) {
-                if (seen_e) {
-                    negative_exponent = true;
-                } else {
-                    negative = true;
-                }
-                seen_number = true;
-            } else {
-                still_valid = false;
-                // unexpected '-' after numbers
-            }
-            break;
-        case '.':
-            seen_period = true;
-            break;
-        case 'e':
-        case 'E':
-            seen_e = true;
-            seen_number = seen_period = false;
-            break;
-        default:
-            if (*pCur >= '0' && *pCur <= '9') {
-                if (seen_e) {
-                    exponent = exponent * 10 + *pCur - '0';
-                } else if (seen_period) {
-                    decimal = decimal * 10 + *pCur - '0';
-                    decimal_digits++;
-                } else {
-                    whole = whole * 10 + *pCur - '0';
-                }
-            } else {
-                still_valid = false;
-            }
-            break;
-        }
-    }
-    return (negative ? -1.f : 1.f) * (whole + decimal / pow(10.f, decimal_digits)) * pow(10.f, (negative_exponent ? -1.f: 1.f) * exponent);
-}
+#include <stdlib.h>  // llabs()
 
 
 static void flip(char *pLeft, char *pRight) {
@@ -125,8 +24,13 @@ static void flip(char *pLeft, char *pRight) {
 #define MAX(left, right) (((left) > (right)) ? (left) : (right))
 #endif
 
+
 // returns the pointer to the null-terminating character of the filled string
 int pico_vsnprintf(char *pDest, size_t cbDest, const char *pFormat, va_list vl) {
+    const char *pLowercaseNumberDigits = "0123456789abcdef";
+    const char *pUppercaseNumberDigits = "0123456789ABCDEF";
+    const char *pOctalDigits = pLowercaseNumberDigits;
+    const char *pBinaryDigits = pLowercaseNumberDigits;
     char *pStart = pDest;
     for (char *pEnd = pDest + cbDest - 1; *pFormat && pDest < pEnd; ) {
         if (*pFormat != '%') {
@@ -137,27 +41,41 @@ int pico_vsnprintf(char *pDest, size_t cbDest, const char *pFormat, va_list vl) 
                 *pDest++ = *pFormat++;
             } else {                        // first, collect the format
                 char format = '\0';
-                bool force_sign = false;
-                bool fill_zeros = false;
                 int bits_per_digit = 0;     // valid in 'b', 'o', 'p' and 'x'/'X' modes only
-                int whole_chars = 0;
+                int whole_chars = 0;        // number of chars in the whole part of the number
                 int decimal_chars = -1;     // if not specified, %f are rendered with 6, while %g are rendered with 0
-                bool seen_period = false;
-                bool seen_numbers = false;
-                bool treat_as_unsigned = false;
-                bool treat_as_long = false;
-                bool render_in_lowercase = false;
+            #ifdef __aarch64__              // these platforms benefit from packing flags into a single variable
+                struct {
+                    unsigned force_sign:1;
+                    unsigned fill_zeros:1;
+                    unsigned seen_period:1;
+                    unsigned seen_numbers:1;
+                    unsigned treat_as_unsigned:1;
+                    unsigned treat_as_long:1;
+                    unsigned render_in_lowercase:1;
+                } flags = {0};
+                #define FLAGS flags.
 
+            #else                           // other platforms do not benefit from struct packing
+                unsigned force_sign = 0;
+                unsigned fill_zeros = 0;
+                unsigned seen_period = 0;
+                unsigned seen_numbers = 0;
+                unsigned treat_as_unsigned = 0;
+                unsigned treat_as_long = 0;
+                unsigned render_in_lowercase = 0;
+                #define FLAGS
+            #endif                          // struct packing platforms
                 for (; *pFormat && '\0' == format; pFormat++) {
                     switch (*pFormat) {
                 #ifdef PICOFORMAT_HANDLE_FORCEDSIGN
                     case '+':
-                        force_sign = true;
+                        FLAGS force_sign = 1;
                         break;
                 #endif // PICOFORMAT_HANDLE_FORCEDSIGN
                     case '0':
-                        if (!seen_numbers) {
-                            fill_zeros = true;
+                        if (!FLAGS seen_numbers) {
+                            FLAGS fill_zeros = 1;
                             break;
                         }
                         // fall through
@@ -170,30 +88,30 @@ int pico_vsnprintf(char *pDest, size_t cbDest, const char *pFormat, va_list vl) 
                     case '7':
                     case '8':
                     case '9':
-                        *(seen_period ? &decimal_chars : &whole_chars ) *= 10;
-                        *(seen_period ? &decimal_chars : &whole_chars) += *pFormat - '0';
-                        seen_numbers = true;
+                        *(FLAGS seen_period ? &decimal_chars : &whole_chars ) *= 10;
+                        *(FLAGS seen_period ? &decimal_chars : &whole_chars) += *pFormat - '0';
+                        FLAGS seen_numbers = 1;
                         break;
                     case '.':
-                        seen_numbers = seen_period = true;
+                        FLAGS seen_numbers = FLAGS seen_period = 1;
                         decimal_chars = 0;
                         break;
                     case 'l':    // long modifier
-                        treat_as_long = true;
+                        FLAGS treat_as_long = 1;
                     case 'u':    // unsigned modifier
-                        treat_as_unsigned = true;
+                        FLAGS treat_as_unsigned = 1;
                         break;
                 #ifdef PICOFORMAT_HANDLE_BIN
                     case 'b':
                         bits_per_digit = 0;
-                        treat_as_unsigned = true;
+                        FLAGS treat_as_unsigned = 1;
                         format = 'b';
                         break;
                 #endif // PICOFORMAT_HANDLE_BIN
                 #ifdef PICOFORMAT_HANDLE_OCT
                     case 'o':    // octal integer
                         bits_per_digit = 3;
-                        treat_as_unsigned = true;
+                        FLAGS treat_as_unsigned = 1;
                         format = 'b';
                         break;
                 #endif // PICOFORMAT_HANDLE_OCT
@@ -201,13 +119,13 @@ int pico_vsnprintf(char *pDest, size_t cbDest, const char *pFormat, va_list vl) 
                     case 'x':    // hexadecimal integer
                     case 'p':    // pointer
                         bits_per_digit = 4;
-                        treat_as_unsigned = true;
-                        render_in_lowercase = true;
+                        FLAGS treat_as_unsigned = 1;
+                        FLAGS render_in_lowercase = 1;
                         format = 'b';
                         break;
                     case 'X':    // hexadecimal integer, uppercase
                         bits_per_digit = 4;
-                        treat_as_unsigned = true;
+                        FLAGS treat_as_unsigned = 1;
                         format = 'b';
                         break;
                 #endif // PICOFORMAT_HANDLE_HEX
@@ -217,7 +135,7 @@ int pico_vsnprintf(char *pDest, size_t cbDest, const char *pFormat, va_list vl) 
                     case 'e':   // floating point, exponent format
                 #endif // PICOFORMAT_HANDLE_EXPONENTS
                     case 'f':
-                        render_in_lowercase = true;
+                        FLAGS render_in_lowercase = 1;
                         // fall through
                     case 'F':
                 #endif // PICOFORMAT_HANDLE_FLOATS
@@ -247,18 +165,18 @@ int pico_vsnprintf(char *pDest, size_t cbDest, const char *pFormat, va_list vl) 
             #if defined(PICOFORMAT_HANDLE_HEX) || defined(PICOFORMAT_HANDLE_OCT) || defined(PICOFORMAT_HANDLE_BIN)
                 case 'b': {          // binary, oct, or hex integer, always unsigned
                         long long int val = 0;
-                        if (treat_as_long) {
+                        if (FLAGS treat_as_long) {
                             val = va_arg(vl, unsigned long long int);
                         } else {
                             val = va_arg(vl, unsigned);
                         }
                         unsigned mask = bits_per_digit == 4 ? 0x0f : bits_per_digit == 3 ? 0x07 : 0x01;
                 #if defined(PICOFORMAT_HANDLE_HEX)
-                        const char* chars = render_in_lowercase ? "0123456789abcdef" : "0123456789ABCDEF";
+                        const char* chars = FLAGS render_in_lowercase ? pLowercaseNumberDigits : pUppercaseNumberDigits;
                 #elif defined(PICOFORMAT_HANDLE_OCT)
-                        const char* chars = "01234567";
+                        const char* chars = pOctalDigits;
                 #else
-                        const char* chars = "01";
+                        const char* chars = pBinaryDigits;
                 #endif // individual non-decimal formats
                         while (pDest < pEnd
                             && (pDest == pParamStarts
@@ -269,7 +187,7 @@ int pico_vsnprintf(char *pDest, size_t cbDest, const char *pFormat, va_list vl) 
                                 ch = chars[val & mask];
                                 val >>= bits_per_digit;
                             } else {
-                                ch = fill_zeros ? '0' : ' ';
+                                ch = FLAGS fill_zeros ? '0' : ' ';
                             }
                             *pDest++ = ch;
                         }
@@ -280,23 +198,23 @@ int pico_vsnprintf(char *pDest, size_t cbDest, const char *pFormat, va_list vl) 
                 case 'd':           // decimal integer
                 case 'i': {
                         long long int val = 0;
-                        if (treat_as_long) {
-                            if (treat_as_unsigned) {
+                        if (FLAGS treat_as_long) {
+                            if (FLAGS treat_as_unsigned) {
                                 val = va_arg(vl, unsigned long long int);
                             } else {
                                 val = va_arg(vl, long long int);
                             }
                         } else {
-                            if (treat_as_unsigned) {
+                            if (FLAGS treat_as_unsigned) {
                                 val = va_arg(vl, unsigned);
                             } else {
                                 val = va_arg(vl, int);
                             }
                         }
                         char chSign = '\0';
-                        if ((force_sign || val < 0) && pDest < pEnd) {
+                        if ((FLAGS force_sign || val < 0) && pDest < pEnd) {
                             chSign = val < 0 ? '-' : '+';
-                            val = abs(val);
+                            val = llabs(val);
                             whole_chars--;
                         }
                         while (pDest < pEnd
@@ -304,24 +222,24 @@ int pico_vsnprintf(char *pDest, size_t cbDest, const char *pFormat, va_list vl) 
                              || val
                              || pDest - pParamStarts < whole_chars)) {
                             char ch;
-                            if (pDest == pParamStarts || 0 != val) {// if first digit (i.e. zero) or there's still non-zero digits to write
+                            if (pDest == pParamStarts || 0 != val) {        // if first digit (i.e. zero) or there's still non-zero digits to write
                                 ch = val % 10 + '0';
                                 val /= 10;
                             } else {
-                                if ('\0' != chSign && !fill_zeros) {// write a sign if filling with spaces, not with zeros
+                                if ('\0' != chSign && !FLAGS fill_zeros) {  // write a sign if filling with spaces, not with zeros
                                     *pDest++ = chSign;
                                     whole_chars++;
-                                    chSign = '\0';                  // prevent the sign from placing down twice
+                                    chSign = '\0';                          // prevent the sign from being written twice
                                 }
                         #ifdef PICOFORMAT_HANDLE_FILL
-                                ch = fill_zeros ? '0' : ' ';
+                                ch = FLAGS fill_zeros ? '0' : ' ';
                         #else // PICOFORMAT_HANDLE_FILL
                                     break;
                         #endif // PICOFORMAT_HANDLE_FILL
                             }
                             *pDest++ = ch;
                         }
-                        if ('\0' != chSign) { // write a sign if it wasn't written before
+                        if ('\0' != chSign) {                               // write a sign if it wasn't written before
                             *pDest++ = chSign;
                         }
                         flip(pParamStarts, pDest);
@@ -330,13 +248,13 @@ int pico_vsnprintf(char *pDest, size_t cbDest, const char *pFormat, va_list vl) 
             #ifdef PICOFORMAT_HANDLE_FLOATS
                 case 'f': case 'F': {
                         double val = va_arg(vl, double);
-                        if (force_sign || val < 0.f) {
+                        if (FLAGS force_sign || val < 0.f) {
                             *pDest++ = val < 0.f ? '-' : '+';
                             val = fabs(val);
                             pParamStarts = pDest;
                         }
                         if (val == INFINITY || val == -INFINITY || isnan(val)) {
-                            for (const char *pszVal = isnan(val) ? render_in_lowercase ? "nan" : "NAN": render_in_lowercase ? "inf" : "INF"
+                            for (const char *pszVal = isnan(val) ? FLAGS render_in_lowercase ? "nan" : "NAN": FLAGS render_in_lowercase ? "inf" : "INF"
                                ; pDest < pEnd && *pszVal
                                ; *pDest++ = *pszVal++);
                         } else {

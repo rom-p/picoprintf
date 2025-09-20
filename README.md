@@ -11,12 +11,12 @@ The code size of this and similar libraries, as reported in .map file, adding up
 
 |    target      | **picoprintf** min | **picoprintf** full | <a href="https://github.com/mpaland/printf">mpaland</a> | <a href="https://github.com/cjlano/tinyprintf">tinyprintf</a> | <a href="https://github.com/charlesnicholson/nanoprintf">nanoprintf</a> |
 | ---: | :---: | :---: | :---: | :---: | :---: |
-| ARM thumb gcc 11.3.0 |  544 | 1406 | 4438 | 1528 | 2388 |
-| ARM 32 gcc 11.3.0    |  880 | 2318 | 6962 | 2372 | 3764 |
-| ARM 64 gcc 11.3.0    | 1192 | 2361 | 6582 | 3200 | 4612 |
-| ARM 64 clang 14.0.3  |  848 | 2044 | 5846 | 2401 | 4066 |
-| x86 gcc 9.4.0        |  697 | 1272 | 5022 | 3649 | 3681 |
-| x64 gcc 9.4.0        |  889 | 1592 | 5974 | 3782 | 2676 |
+| ARM thumb gcc 11.3.0 |  504 | 1320 | 4438 | 1528 | 2388 |
+| ARM 32 gcc 11.3.0    |  832 | 2192 | 6962 | 2372 | 3764 |
+| ARM 64 gcc 11.3.0    | 1140 | 2160 | 6582 | 3200 | 4612 |
+| ARM 64 clang 14.0.3  |  744 | 1954 | 5846 | 2401 | 4066 |
+| x86 gcc 9.4.0        |  638 | 1563 | 5022 | 3649 | 3681 |
+| x64 gcc 9.4.0        |  909 | 1726 | 5974 | 3782 | 2676 |
 
 all values are collected by compiling with `-Os` flag
 
@@ -36,7 +36,7 @@ copy the header and the .c file into any project, build it and notice the .map f
 ## macOS
 to build for native CPU:
 
-`clang picoprintf.c picotest.c -Os -Wl,-map,pico.map`
+`clang picoprintf.c picoatox.c picotest.c -Os -Wl,-map,pico.map`
 
 calculate the size of the module:
 
@@ -44,4 +44,8 @@ calculate the size of the module:
 
 ## Linux
 
-`gcc picoprintf.c picotest.c -lm -Os -Wl,-Map,pico.map`
+`gcc picoprintf.c picoatox.c picotest.c -lm -Os -Wl,-Map,pico.map`
+
+calculate the size of the module:
+
+`cat pico.map | grep pico_v -B 1 | grep -o -E '0x[0-9a-fA-F]{2,4} ' | sed 's/0x[^0-9a-fA-F]*//' | awk '{ printf "%d\n", "0x" $1}' | awk '{s+=$1} END {print s}'`
