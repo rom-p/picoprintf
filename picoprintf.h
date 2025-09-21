@@ -3,7 +3,6 @@
 
 #include <stddef.h>  // size_t
 #include <stdarg.h>  // va_*
-#include "picobool.h"
 
 
 int pico_snprintf(char *pDest, size_t cbDest, const char *pFormat, ...);
