@@ -28,6 +28,7 @@ inline int pico_sprintf(char *pDest, const char *pFormat, ...) {
 // #define PICOFORMAT_HANDLE_OCT           // uncomment this line to handle "%o"
 // #define PICOFORMAT_HANDLE_HEX           // uncomment this line to handle "%x" and "%X"
 // #define PICOFORMAT_HANDLE_FLOATS        // uncomment this line to handle the "%f"
+// #define PICOFORMAT_CLANG_QUIRK          // uncomment this line to match clang's non-standard "%010s" behavior (zero-pad strings when both '0' flag and width are set)
 
 
 // by default, the debug builds (determined by `#define _DEBUG`) will real-time print errors when a feature is used that is not enabled above

@@ -12,7 +12,7 @@
 # Supported Format Specifiers
 * `%c` (char)
 * `%s` (string)
-* `%d`, `%i`, `%u` (decimal integers, signed/unsigned).  Fill (e.g., `%6d` or `%03i`) and forced signs (e.g., `%+i`) can be enabled at build time by defining `PICOFORMAT_HANDLE_FILL` and `PICOFORMAT_HANDLE_FORCEDSIGN`, respectively
+* `%d`, `%i` (signed decimal integers), `%u` (unsigned decimal integer), and the `l` length modifier (e.g. `%ld`, `%lu`).  Fill (e.g., `%6d` or `%03i`) and forced signs (e.g., `%+i`) can be enabled at build time by defining `PICOFORMAT_HANDLE_FILL` and `PICOFORMAT_HANDLE_FORCEDSIGN`, respectively
 * `%b` (binary) -- can be enabled at build time by defining `PICOFORMAT_HANDLE_BIN`
 * `%o` (octal) -- can be enabled at build time by defining `PICOFORMAT_HANDLE_OCT`
 * `%x`/`%X` (hexadecimal) -- can be enabled at build time by defining `PICOFORMAT_HANDLE_HEX`
@@ -48,8 +48,8 @@ pico_snprintf(buf, sizeof(buf), "Value: %d", 42);
 char buf[128];
 
 // Hexadecimal with padding
-pico_snprintf(buf, sizeof(buf), "Address: 0x%08X", 0xDEADBEEF);
-// buf: "Address: 0xDEADBEEF"
+pico_snprintf(buf, sizeof(buf), "Magic: 0x%08X  Answer: 0x%04X", 0xCAFE, 66);
+// buf: "Magic: 0x0000CAFE  Answer: 0x0042"
 
 // Decimal with forced sign and padding
 pico_snprintf(buf, sizeof(buf), "Temperature: %+6d°C", 23);
@@ -94,12 +94,12 @@ Control the code size and feature set by commenting and uncommenting macros in `
 
 |    target      | **picoprintf** min | **picoprintf** full | [mpaland](https://github.com/mpaland/printf) | [tinyprintf](https://github.com/cjlano/tinyprintf) | [nano-printf](https://github.com/charlesnicholson/nanoprintf) |
 | ---: | :---: | :---: | :---: | :---: | :---: |
-| ARM thumb gcc 11.3.0 |  504 | 1320 | 4438 | 1528 | 2388 |
-| ARM 32 gcc 11.3.0    |  832 | 2192 | 6962 | 2372 | 3764 |
-| ARM 64 gcc 11.3.0    | 1140 | 2160 | 6582 | 3200 | 4612 |
-| ARM 64 clang 14.0.3  |  744 | 1954 | 5846 | 2401 | 4066 |
-| x86 gcc 9.4.0        |  638 | 1563 | 5022 | 3649 | 3681 |
-| x64 gcc 9.4.0        |  909 | 1726 | 5974 | 3782 | 2676 |
+| ARM thumb gcc 13.3.0 |  520 | 1632 | 4438 | 1528 | 2388 |
+| ARM 32 gcc 13.3.0    |  880 | 2384 | 6962 | 2372 | 3764 |
+| ARM 64 gcc 13.3.0    | 1380 | 2820 | 6582 | 3200 | 4612 |
+| ARM 64 clang 17.0.0  |  772 | 2442 | 5846 | 2401 | 4066 |
+| x86 gcc 13.3.0       |  664 | 1754 | 5022 | 3649 | 3681 |
+| x64 gcc 13.3.0       |  992 | 1973 | 5974 | 3782 | 2676 |
 
 **Notes:**
 * "min": minimal config (chars, strings, ints only)
@@ -153,7 +153,7 @@ gcc picoprintf.c picoatox.c picotest.c -lm -DPICOFORMAT_HANDLE_FLOATS -DPICOFORM
 ```c
 int pico_snprintf(char *output_buffer, size_t size, const char *format, ...);
 int pico_vsnprintf(char *output_buffer, size_t size, const char *format, va_list args);
-int pico_sprintf(char *output_buffer, const char *format, ...);  // risk of buffer overflow, do not use!
+int pico_sprintf(char *output_buffer, const char *format, ...);  // risk of buffer overflow, use `pico_snprintf()` or `pico_vsnprintf()` instead
 ```
 
 ## Return Value

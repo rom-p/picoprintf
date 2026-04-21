@@ -44,7 +44,7 @@ void _putchar(char character) {}
 
 
 const char* g_pIntegerFormats[] = {
-    "%d", "%i",
+    "%d", "%i", "%u", "%lu", "%llu",
 #ifdef PICOFORMAT_HANDLE_OCT
     "%o",
 #endif // PICOFORMAT_HANDLE_OCT
@@ -52,7 +52,7 @@ const char* g_pIntegerFormats[] = {
     "%x", "%X",
 #endif // PICOFORMAT_HANDLE_HEX
 #ifdef PICOFORMAT_HANDLE_FILL
-    "%6i", "%05d",
+    "%6i", "%05d", "%2u",
 #ifdef PICOFORMAT_HANDLE_OCT
     "%10d", "%3o",
 #endif // PICOFORMAT_HANDLE_OCT
@@ -69,18 +69,42 @@ const char* g_pIntegerFormats[] = {
 
 int g_testIntegers[] = {
     0, 1, -1, 17, -17, 44, -44, 126, -126, 127, -127, 128, -128, 255, -255, 256, -256, 999, -999,
-    1000, -1000, 65535, -65535, 65536, -65536, 1000 * 1000, -1000 * 1000,
+    1000, -1000, 65535, -65535, 65536, -65536, 1000 * 1000, -1000 * 1000, (1 << 30) - 1, (1 << 31), (1 << 31) + 1,
     (int)((long long)(2) * 1024 * 1024 * 1024 - 1), -(int)((long long)(2) * 1024 * 1024 * 1024 - 1)
 };
 
 
 const char* g_pFloatFormats[] = {
-    "%f", "%3.2f", "%F", "%+f", "%+F", "text %.2f here",
+    "%f", "%3.2f", "%F",
+    #ifdef PICOFORMAT_HANDLE_FORCEDSIGN
+        "%+f", "%+F",
+    #endif // PICOFORMAT_HANDLE_FORCEDSIGN
+    #ifdef PICOFORMAT_HANDLE_FLOATS
+        "%f", "%3.2f", "%F",
+    #endif // PICOFORMAT_HANDLE_FLOATS
+    "text %.2f here",
     NULL  // keep it last
 };
 
 float g_testFloats[] = {
     0, 1, -1, 3.14, -M_PI, 13.07, 1000 * 1000 * 42 + 0.582, INFINITY, -INFINITY, NAN, -NAN
+};
+
+
+const char* g_pStringFormats[] = {
+    "%s",
+#if defined(PICOFORMAT_HANDLE_FILL)
+    "%10s", "%-10s", "%10.5s", "%-10.5s",
+#if defined(PICOFORMAT_CLANG_QUIRK) == defined(__clang__)
+    // clang's non-standard "%0Ns" zero-padding mode -- only safe to compare against stdlib when stdlib is clang
+    "%010s", "%010.5s", "%-010s", "%08.3s", "%-08.3s",
+#endif // PICOFORMAT_CLANG_QUIRK et al.
+#endif // PICOFORMAT_HANDLE_FILL
+    NULL  // keep it last
+};
+
+const char* g_testStrings[] = {
+    "", "x", "hello", "hello, world!", "a rather long string that is here just to have lots of characters and more space for testing and such", NULL
 };
 
 
@@ -95,6 +119,20 @@ int main(int argc, const char ** argv) {
     RUN_TEST("%s, %s!", "hello", "world");
     RUN_TEST("%s%c %s%c", "hello", ',', "world", '!');
 
+#ifdef PICOFORMAT_HANDLE_FILL
+    // dynamic width/precision via '*'
+    RUN_TEST("%.*s", 5, "hello, world!");
+    RUN_TEST("%.*s", 0, "hello");
+    RUN_TEST("%.*s", 100, "short");
+    RUN_TEST("[%*s]", 10, "hi");
+    RUN_TEST("[%*.*s]", 8, 3, "hello, world!");
+    RUN_TEST("before %.*s after", 3, "picoprintf");
+#ifdef PICOFORMAT_HANDLE_FLOATS
+    RUN_TEST("%.*f", 2, 3.14159);
+    RUN_TEST("%.*f", 4, 3.14159);
+#endif // PICOFORMAT_HANDLE_FLOATS
+#endif // PICOFORMAT_HANDLE_FILL
+
     srand((unsigned)time(NULL));
 
     for (const char **ppFormat = g_pIntegerFormats; NULL != *ppFormat; ppFormat++) {
@@ -104,6 +142,12 @@ int main(int argc, const char ** argv) {
         for (size_t ii = 0; ii < 20; ii++) {
             int val = (rand() % 2 ? 1 : -1 ) * rand();
             RUN_TEST(*ppFormat, val);
+        }
+    }
+
+    for (const char **ppFormat = g_pStringFormats; NULL != *ppFormat; ppFormat++) {
+        for (const char **ppString = g_testStrings; NULL != *ppString; ppString++) {
+            RUN_TEST(*ppFormat, *ppString);
         }
     }
 

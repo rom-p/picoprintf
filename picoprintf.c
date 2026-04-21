@@ -48,6 +48,7 @@ int pico_vsnprintf(char *pDest, size_t cbDest, const char *pFormat, va_list vl) 
                 struct {
                     unsigned force_sign:1;
                     unsigned fill_zeros:1;
+                    unsigned left_align:1;
                     unsigned seen_period:1;
                     unsigned seen_numbers:1;
                     unsigned treat_as_unsigned:1;
@@ -59,6 +60,7 @@ int pico_vsnprintf(char *pDest, size_t cbDest, const char *pFormat, va_list vl) 
             #else                           // other platforms do not benefit from struct packing
                 unsigned force_sign = 0;
                 unsigned fill_zeros = 0;
+                unsigned left_align = 0;
                 unsigned seen_period = 0;
                 unsigned seen_numbers = 0;
                 unsigned treat_as_unsigned = 0;
@@ -73,6 +75,11 @@ int pico_vsnprintf(char *pDest, size_t cbDest, const char *pFormat, va_list vl) 
                         FLAGS force_sign = 1;
                         break;
                 #endif // PICOFORMAT_HANDLE_FORCEDSIGN
+                #ifdef PICOFORMAT_HANDLE_FILL
+                    case '-':    // left-align flag
+                        FLAGS left_align = 1;
+                        break;
+                #endif // PICOFORMAT_HANDLE_FILL
                     case '0':
                         if (!FLAGS seen_numbers) {
                             FLAGS fill_zeros = 1;
@@ -96,10 +103,16 @@ int pico_vsnprintf(char *pDest, size_t cbDest, const char *pFormat, va_list vl) 
                         FLAGS seen_numbers = FLAGS seen_period = 1;
                         decimal_chars = 0;
                         break;
+                    case '*':                        // dynamic width/precision: read value from arg list
+                        *(FLAGS seen_period ? &decimal_chars : &whole_chars) = va_arg(vl, int);
+                        FLAGS seen_numbers = 1;
+                        break;
                     case 'l':    // long modifier
                         FLAGS treat_as_long = 1;
-                    case 'u':    // unsigned modifier
+                        break;
+                    case 'u':    // unsigned decimal integer
                         FLAGS treat_as_unsigned = 1;
+                        format = 'd';
                         break;
                 #ifdef PICOFORMAT_HANDLE_BIN
                     case 'b':
@@ -157,9 +170,34 @@ int pico_vsnprintf(char *pDest, size_t cbDest, const char *pFormat, va_list vl) 
                 case 'c':           // single char
                     *pDest++ = va_arg(vl, int) & 0xff;
                     break;
-                case 's':           // null-terminated string
-                    for (const char *pStr = va_arg(vl, const char*); *pStr && pDest < pEnd; ) {
-                        *pDest++ = *pStr++;
+                case 's': {         // null-terminated string
+                #ifdef PICOFORMAT_HANDLE_FILL
+                        int len = 0;                                // effective length, bounded by precision if set
+                        const char *pStr = va_arg(vl, const char*);
+                        for (; pStr[len] && (decimal_chars < 0 || len < decimal_chars); len++);
+                        if (!FLAGS left_align) {                    // right-align: pad on the left
+                #ifdef PICOFORMAT_CLANG_QUIRK                       // clang's non-standard: '0' flag zero-pads strings
+                            char chFill = FLAGS fill_zeros ? '0' : ' ';
+                #else  // PICOFORMAT_CLANG_QUIRK                     // standard C: '0' flag is undefined for %s, use spaces
+                            char chFill = ' ';
+                #endif // PICOFORMAT_CLANG_QUIRK
+                            for (; pDest < pEnd && whole_chars > len; whole_chars--) {
+                                *pDest++ = chFill;
+                            }
+                        }
+                        for (int ii = 0; ii < len && pDest < pEnd; ii++) {
+                            *pDest++ = pStr[ii];
+                        }
+                        if (FLAGS left_align) {                     // left-align: pad on the right (always spaces; '-' flag overrides '0')
+                            for (; pDest < pEnd && whole_chars > len; whole_chars--) {
+                                *pDest++ = ' ';
+                            }
+                        }
+                #else  // PICOFORMAT_HANDLE_FILL
+                        for (const char *pStr = va_arg(vl, const char*); *pStr && pDest < pEnd; ) {
+                            *pDest++ = *pStr++;
+                        }
+                #endif // PICOFORMAT_HANDLE_FILL
                     }
                     break;
             #if defined(PICOFORMAT_HANDLE_HEX) || defined(PICOFORMAT_HANDLE_OCT) || defined(PICOFORMAT_HANDLE_BIN)
