@@ -23,6 +23,7 @@ inline int pico_sprintf(char *pDest, const char *pFormat, ...) {
 //  comment/uncomment the following lines corresponding to the features you need
 //
 // #define PICOFORMAT_HANDLE_FILL          // uncomment this line to handle "%6i" and "%04d" -- the fill with zeroes or spaces
+// #define PICOFORMAT_HANDLE_DYNAMIC_PRECISION // uncomment this line to handle dynamic precision, such as "%.*s"
 // #define PICOFORMAT_HANDLE_FORCEDSIGN    // uncomment this line to handle "%+d" -- the forced sign placement
 // #define PICOFORMAT_HANDLE_BIN           // uncomment this line to handle "%b" -- binary representation
 // #define PICOFORMAT_HANDLE_OCT           // uncomment this line to handle "%o"

@@ -119,18 +119,25 @@ int main(int argc, const char ** argv) {
     RUN_TEST("%s, %s!", "hello", "world");
     RUN_TEST("%s%c %s%c", "hello", ',', "world", '!');
 
-#ifdef PICOFORMAT_HANDLE_FILL
-    // dynamic width/precision via '*'
+#ifdef PICOFORMAT_HANDLE_DYNAMIC_PRECISION
+    // dynamic precision via '*'
     RUN_TEST("%.*s", 5, "hello, world!");
     RUN_TEST("%.*s", 0, "hello");
     RUN_TEST("%.*s", 100, "short");
-    RUN_TEST("[%*s]", 10, "hi");
-    RUN_TEST("[%*.*s]", 8, 3, "hello, world!");
+    RUN_TEST("%.*s", -1, "negative precision");
     RUN_TEST("before %.*s after", 3, "picoprintf");
 #ifdef PICOFORMAT_HANDLE_FLOATS
     RUN_TEST("%.*f", 2, 3.14159);
     RUN_TEST("%.*f", 4, 3.14159);
 #endif // PICOFORMAT_HANDLE_FLOATS
+#endif // PICOFORMAT_HANDLE_DYNAMIC_PRECISION
+
+#ifdef PICOFORMAT_HANDLE_FILL
+    // dynamic width via '*'
+    RUN_TEST("[%*s]", 10, "hi");
+#ifdef PICOFORMAT_HANDLE_DYNAMIC_PRECISION
+    RUN_TEST("[%*.*s]", 8, 3, "hello, world!");
+#endif // PICOFORMAT_HANDLE_DYNAMIC_PRECISION
 #endif // PICOFORMAT_HANDLE_FILL
 
     srand((unsigned)time(NULL));

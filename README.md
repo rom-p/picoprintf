@@ -11,7 +11,7 @@
 
 # Supported Format Specifiers
 * `%c` (char)
-* `%s` (string)
+* `%s` (string); dynamic precision (e.g., `%.*s`) can be enabled with `PICOFORMAT_HANDLE_DYNAMIC_PRECISION`
 * `%d`, `%i` (signed decimal integers), `%u` (unsigned decimal integer), and the `l` length modifier (e.g. `%ld`, `%lu`).  Fill (e.g., `%6d` or `%03i`) and forced signs (e.g., `%+i`) can be enabled at build time by defining `PICOFORMAT_HANDLE_FILL` and `PICOFORMAT_HANDLE_FORCEDSIGN`, respectively
 * `%b` (binary) -- can be enabled at build time by defining `PICOFORMAT_HANDLE_BIN`
 * `%o` (octal) -- can be enabled at build time by defining `PICOFORMAT_HANDLE_OCT`
@@ -75,6 +75,7 @@ Control the code size and feature set by commenting and uncommenting macros in `
 | Macro | Features Enabled | Code Size Impact |
 |-------|------------------|------------------|
 | `PICOFORMAT_HANDLE_FILL` | Width specifiers: `%6d`, `%04d` | Small |
+| `PICOFORMAT_HANDLE_DYNAMIC_PRECISION` | Dynamic precision: `%.*s`, `%.*f` | Small |
 | `PICOFORMAT_HANDLE_FORCEDSIGN` | Forced signs: `%+d` | Minimal |
 | `PICOFORMAT_HANDLE_BIN` | Binary format: `%b` | Small |
 | `PICOFORMAT_HANDLE_OCT` | Octal format: `%o` | Small |
@@ -85,8 +86,9 @@ Control the code size and feature set by commenting and uncommenting macros in `
 ```c
 // picoprintf.h - uncomment features you need
 #define PICOFORMAT_HANDLE_FILL          // Enable width/padding
+#define PICOFORMAT_HANDLE_DYNAMIC_PRECISION // Enable dynamic precision
 #define PICOFORMAT_HANDLE_HEX           // Enable hexadecimal
-// #define PICOFORMAT_HANDLE_FLOATS     // Disable floats to save space
+// #define PICOFORMAT_HANDLE_FLOATS     // Disable floats to save space in your binary
 ```
 
 # Benchmarks and Alternatives
@@ -94,15 +96,15 @@ Control the code size and feature set by commenting and uncommenting macros in `
 
 |    target      | **picoprintf** min | **picoprintf** full | [mpaland](https://github.com/mpaland/printf) | [tinyprintf](https://github.com/cjlano/tinyprintf) | [nano-printf](https://github.com/charlesnicholson/nanoprintf) |
 | ---: | :---: | :---: | :---: | :---: | :---: |
-| ARM thumb gcc 13.3.0 |  520 | 1632 | 4438 | 1528 | 2388 |
-| ARM 32 gcc 13.3.0    |  880 | 2384 | 6962 | 2372 | 3764 |
-| ARM 64 gcc 13.3.0    | 1380 | 2820 | 6582 | 3200 | 4612 |
-| ARM 64 clang 17.0.0  |  772 | 2442 | 5846 | 2401 | 4066 |
-| x86 gcc 13.3.0       |  664 | 1754 | 5022 | 3649 | 3681 |
-| x64 gcc 13.3.0       |  992 | 1973 | 5974 | 3782 | 2676 |
+| ARM thumb gcc 13.3.0 |  544 | 1680 | 4438 | 1528 | 2388 |
+| ARM 32 gcc 13.3.0    |  928 | 2288 | 6962 | 2372 | 3764 |
+| ARM 64 gcc 13.3.0    | 1272 | 2892 | 6582 | 3200 | 4612 |
+| ARM 64 clang 13.3.0  |  772 | 2442 | 5846 | 2401 | 4066 |
+| x86 gcc 13.3.0       |  640 | 1761 | 5022 | 3649 | 3681 |
+| x64 gcc 13.3.0       |  911 | 2004 | 5974 | 3782 | 2676 |
 
 **Notes:**
-* "min": minimal config (chars, strings, ints only)
+* "min": minimal config (chars, strings, decimal ints only)
 * "full": all optional features enabled
 * all values collected with `-Os` flag; actual results depend on toolchain version and configuration
 
@@ -128,13 +130,13 @@ gcc picoprintf.c picoatox.c picotest.c -lm -Os -Wl,-Map,pico.map
 
 Calculate size:
 ```sh
-cat pico.map | grep pico_v -B 1 | grep -o -E '0x[0-9a-fA-F]{2,4} ' | sed 's/0x[^0-9a-fA-F]*//' | awk '{ printf "%d\n", "0x" $1}' | awk '{s+=$1} END {print s}'
+cat pico.map | grep pico_v -B 1 | grep -o -E '0x[0-9a-fA-F]{2,4} ' | sed 's/0x[^0-9a-fA-F]*//' | awk '{ print strtonum("0x" $1) }' | awk '{s+=$1} END {print s}'
 ```
 
 # Testing
 ## Running Tests
 ```sh
-# Compile and run all tests
+# Compile and run all tests (select the features you want through the `-D` flags or by uncommening the `#define`s in `picoprintf.h`)
 gcc picoprintf.c picoatox.c picotest.c -lm -DPICOFORMAT_HANDLE_FLOATS -DPICOFORMAT_HANDLE_HEX -o picotest
 ./picotest
 

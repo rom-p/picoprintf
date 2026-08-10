@@ -117,10 +117,21 @@ int pico_vsnprintf(char *pDest, size_t cbDest, const char *pFormat, va_list vl) 
                         FLAGS seen_numbers = FLAGS seen_period = 1;
                         decimal_chars = 0;
                         break;
+                #if defined(PICOFORMAT_HANDLE_FILL) || defined(PICOFORMAT_HANDLE_DYNAMIC_PRECISION)
                     case '*':                        // dynamic width/precision: read value from arg list
-                        *(FLAGS seen_period ? &decimal_chars : &whole_chars) = va_arg(vl, int);
+                #ifdef PICOFORMAT_HANDLE_DYNAMIC_PRECISION
+                        if (FLAGS seen_period) {
+                            decimal_chars = va_arg(vl, int);
+                            FLAGS seen_numbers = 1;
+                            break;
+                        }
+                #endif // PICOFORMAT_HANDLE_DYNAMIC_PRECISION
+                #ifdef PICOFORMAT_HANDLE_FILL
+                        whole_chars = va_arg(vl, int);
                         FLAGS seen_numbers = 1;
+                #endif // PICOFORMAT_HANDLE_FILL
                         break;
+                #endif // PICOFORMAT_HANDLE_FILL || PICOFORMAT_HANDLE_DYNAMIC_PRECISION
                     case 'l':    // long modifier
                         FLAGS treat_as_long = 1;
                         break;
@@ -185,10 +196,11 @@ int pico_vsnprintf(char *pDest, size_t cbDest, const char *pFormat, va_list vl) 
                     *pDest++ = va_arg(vl, int) & 0xff;
                     break;
                 case 's': {         // null-terminated string
-                #ifdef PICOFORMAT_HANDLE_FILL
+                #if defined(PICOFORMAT_HANDLE_FILL) || defined(PICOFORMAT_HANDLE_DYNAMIC_PRECISION)
                         int len = 0;                                // effective length, bounded by precision if set
                         const char *pStr = va_arg(vl, const char*);
                         for (; pStr[len] && (decimal_chars < 0 || len < decimal_chars); len++);
+                #ifdef PICOFORMAT_HANDLE_FILL
                         if (!FLAGS left_align) {                    // right-align: pad on the left
                 #ifdef PICOFORMAT_CLANG_QUIRK                       // clang's non-standard: '0' flag zero-pads strings
                             char chFill = FLAGS fill_zeros ? '0' : ' ';
@@ -199,19 +211,22 @@ int pico_vsnprintf(char *pDest, size_t cbDest, const char *pFormat, va_list vl) 
                                 *pDest++ = chFill;
                             }
                         }
+                #endif // PICOFORMAT_HANDLE_FILL
                         for (int ii = 0; ii < len && pDest < pEnd; ii++) {
                             *pDest++ = pStr[ii];
                         }
+                #ifdef PICOFORMAT_HANDLE_FILL
                         if (FLAGS left_align) {                     // left-align: pad on the right (always spaces; '-' flag overrides '0')
                             for (; pDest < pEnd && whole_chars > len; whole_chars--) {
                                 *pDest++ = ' ';
                             }
                         }
-                #else  // PICOFORMAT_HANDLE_FILL
+                #endif // PICOFORMAT_HANDLE_FILL
+                #else  // PICOFORMAT_HANDLE_FILL || PICOFORMAT_HANDLE_DYNAMIC_PRECISION
                         for (const char *pStr = va_arg(vl, const char*); *pStr && pDest < pEnd; ) {
                             *pDest++ = *pStr++;
                         }
-                #endif // PICOFORMAT_HANDLE_FILL
+                #endif // PICOFORMAT_HANDLE_FILL || PICOFORMAT_HANDLE_DYNAMIC_PRECISION
                     }
                     break;
             #if defined(PICOFORMAT_HANDLE_HEX) || defined(PICOFORMAT_HANDLE_OCT) || defined(PICOFORMAT_HANDLE_BIN)
@@ -300,8 +315,9 @@ int pico_vsnprintf(char *pDest, size_t cbDest, const char *pFormat, va_list vl) 
             #ifdef PICOFORMAT_HANDLE_FLOATS
                 case 'f': case 'F': {
                         double val = va_arg(vl, double);
-                        if (FLAGS force_sign || val < 0.f) {
-                            *pDest++ = val < 0.f ? '-' : '+';
+                        int negative = signbit(val);
+                        if (FLAGS force_sign || negative) {
+                            *pDest++ = negative ? '-' : '+';
                             val = fabs(val);
                             pParamStarts = pDest;
                         }
