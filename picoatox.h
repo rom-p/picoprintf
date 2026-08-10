@@ -11,9 +11,13 @@ extern "C" {
 #endif // __cplusplus
 
 #ifdef __cplusplus
+    // `force_base`: 0 == autodetect, any other number: use the specified base
     int pico_atoi(const char *pStr, int force_base = 0);
+    unsigned pico_atou(const char *pStr, int force_base = 0);
 #else
+    // `force_base`: 0 == autodetect, any other number: use the specified base
     int pico_atoi(const char *pStr, int force_base);
+    unsigned pico_atou(const char *pStr, int force_base);
 #endif
 float pico_atof(const char *pStr);
 

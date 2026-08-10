@@ -1,17 +1,14 @@
 #include "picoatox.h"
 #include <math.h> // pow()
 
+#define MAX_DECIMAL_DIGITS 9
+
 
 // auto-detects base (if not forced) using c/c++ rules
-int pico_atoi(const char *pStr, int force_base) {
-    long long result = 0;
+unsigned pico_atou(const char *pStr, int force_base) {
+    unsigned result = 0;
     int base = 10;
-    int sign = 1;
 
-    if ('-' == *pStr) {
-        sign = -1;
-        pStr++;
-    }
     if (0 != force_base) {
         base = force_base;
     } else if ('0' == *pStr) { // bin, oct, or hex
@@ -44,7 +41,20 @@ int pico_atoi(const char *pStr, int force_base) {
             break;
         }
     }
-    return sign * result;
+    return result;
+}
+
+
+// auto-detects base (if not forced) using c/c++ rules
+int pico_atoi(const char *pStr, int force_base) {
+    int sign = 1;
+
+    if ('-' == *pStr) {
+        sign = -1;
+        pStr++;
+    }
+
+    return sign * pico_atou(pStr, force_base);
 }
 
 
@@ -56,10 +66,10 @@ float pico_atof(const char* pStr) {
     bool negative = false;
     bool negative_exponent = false;
 
-    int whole = 0;
-    int decimal = 0;
-    int decimal_digits = 0;
-    int exponent = 0;
+    unsigned whole = 0;
+    unsigned decimal = 0;
+    unsigned decimal_digits = 0;
+    unsigned exponent = 0;
 
     for (const char *pCur = pStr; still_valid && *pCur; pCur++) {
         switch (*pCur) {
@@ -89,8 +99,11 @@ float pico_atof(const char* pStr) {
                 if (seen_e) {
                     exponent = exponent * 10 + *pCur - '0';
                 } else if (seen_period) {
-                    decimal = decimal * 10 + *pCur - '0';
-                    decimal_digits++;
+                    if (decimal_digits < MAX_DECIMAL_DIGITS) { // still room in `decimal`
+                        decimal = decimal * 10 + *pCur - '0';
+                        decimal_digits++;
+                    } else {  // `decimal` saturated: not accepting any more digits
+                    }
                 } else {
                     whole = whole * 10 + *pCur - '0';
                 }
