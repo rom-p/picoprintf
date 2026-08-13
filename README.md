@@ -99,7 +99,7 @@ Control the code size and feature set by commenting and uncommenting macros in `
 | ARM thumb gcc 13.3.0 |  544 | 1680 | 4438 | 1528 | 2388 |
 | ARM 32 gcc 13.3.0    |  928 | 2288 | 6962 | 2372 | 3764 |
 | ARM 64 gcc 13.3.0    | 1272 | 2892 | 6582 | 3200 | 4612 |
-| ARM 64 clang 13.3.0  |  772 | 2442 | 5846 | 2401 | 4066 |
+| ARM 64 clang 17.0.0  |  696 | 2368 | 5846 | 2401 | 4066 |
 | x86 gcc 13.3.0       |  640 | 1761 | 5022 | 3649 | 3681 |
 | x64 gcc 13.3.0       |  911 | 2004 | 5974 | 3782 | 2676 |
 
