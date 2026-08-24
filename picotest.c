@@ -44,7 +44,7 @@ void _putchar(char character) {}
 
 
 const char* g_pIntegerFormats[] = {
-    "%d", "%i", "%u", "%lu", "%llu",
+    "%d", "%i", "%u",
 #ifdef PICOFORMAT_HANDLE_OCT
     "%o",
 #endif // PICOFORMAT_HANDLE_OCT
@@ -67,6 +67,12 @@ const char* g_pIntegerFormats[] = {
     NULL  // keep it last
 };
 
+const char *g_pLongFormats[] = {
+    "%lu", "%llu",
+
+    NULL  // keep it last
+};
+
 int g_testIntegers[] = {
     0, 1, -1, 17, -17, 44, -44, 126, -126, 127, -127, 128, -128, 255, -255, 256, -256, 999, -999,
     1000, -1000, 65535, -65535, 65536, -65536, 1000 * 1000, -1000 * 1000, (1 << 30) - 1, (1 << 31), (1 << 31) + 1,
@@ -75,7 +81,7 @@ int g_testIntegers[] = {
 
 
 const char* g_pFloatFormats[] = {
-    "%f", "%3.2f", "%F",
+    "%f", "%3.2f", "%.0f", "%F",
     #ifdef PICOFORMAT_HANDLE_FORCEDSIGN
         "%+f", "%+F",
     #endif // PICOFORMAT_HANDLE_FORCEDSIGN
@@ -87,7 +93,10 @@ const char* g_pFloatFormats[] = {
 };
 
 float g_testFloats[] = {
-    0, 1, -1, 3.14, -M_PI, 13.07, 1000 * 1000 * 42 + 0.582, INFINITY, -INFINITY, NAN, -NAN
+    0, 1, -1, 3.14, -M_PI, 13.07, 1000 * 1000 * 42 + 0.582,
+    7345.00001, -7345.000001, 7345.0000001, -7345.00000001,
+    934.99996, -934.99996, -934.999996, 934.9999996, -934.99999996,
+    INFINITY, -INFINITY, NAN, -NAN
 };
 
 
@@ -131,14 +140,13 @@ int main(int argc, const char ** argv) {
     RUN_TEST("%.*f", 4, 3.14159);
 #endif // PICOFORMAT_HANDLE_FLOATS
 #endif // PICOFORMAT_HANDLE_DYNAMIC_PRECISION
+    RUN_TEST("%% %i", 17);
 
-#ifdef PICOFORMAT_HANDLE_FILL
+#ifdef PICOFORMAT_HANDLE_DYNAMIC_PRECISION
     // dynamic width via '*'
     RUN_TEST("[%*s]", 10, "hi");
-#ifdef PICOFORMAT_HANDLE_DYNAMIC_PRECISION
     RUN_TEST("[%*.*s]", 8, 3, "hello, world!");
 #endif // PICOFORMAT_HANDLE_DYNAMIC_PRECISION
-#endif // PICOFORMAT_HANDLE_FILL
 
     srand((unsigned)time(NULL));
 
@@ -149,6 +157,16 @@ int main(int argc, const char ** argv) {
         for (size_t ii = 0; ii < 20; ii++) {
             int val = (rand() % 2 ? 1 : -1 ) * rand();
             RUN_TEST(*ppFormat, val);
+        }
+    }
+
+    for (const char **ppFormat = g_pLongFormats; NULL != *ppFormat; ppFormat++) {
+        for (size_t ii = 0; ii < sizeof(g_testIntegers) / sizeof(g_testIntegers[0]); ii++) {
+            RUN_TEST(*ppFormat, (long long)g_testIntegers[ii]);
+        }
+        for (size_t ii = 0; ii < 20; ii++) {
+            int val = (rand() % 2 ? 1 : -1 ) * rand();
+            RUN_TEST(*ppFormat, (long long)val);
         }
     }
 

@@ -31,41 +31,45 @@
 ```c
 #include "picoprintf.h"
 
-char buf[64];
+char buf[0x40];
 pico_snprintf(buf, sizeof(buf), "Value: %d", 42);
-// buf now contains "Value: 42"
+// `buf` now contains "Value: 42"
 ```
 
 ## Advanced Usage with Optional Features
 ```c
-// Enable features in picoprintf.h:
-// #define PICOFORMAT_HANDLE_HEX
-// #define PICOFORMAT_HANDLE_FILL
-// #define PICOFORMAT_HANDLE_FORCEDSIGN
+// Uncomment features you need in `picoprinft.h`:
+#define PICOFORMAT_HANDLE_HEX
+#define PICOFORMAT_HANDLE_FILL
+#define PICOFORMAT_HANDLE_FORCEDSIGN
+```
 
+
+```c
+// In your code: include the header:
 #include "picoprintf.h"
 
-char buf[128];
+char buf[0x100];
 
 // Hexadecimal with padding
 pico_snprintf(buf, sizeof(buf), "Magic: 0x%08X  Answer: 0x%04X", 0xCAFE, 66);
-// buf: "Magic: 0x0000CAFE  Answer: 0x0042"
+// `buf`: "Magic: 0x0000CAFE  Answer: 0x0042"
 
 // Decimal with forced sign and padding
 pico_snprintf(buf, sizeof(buf), "Temperature: %+6d°C", 23);
-// buf: "Temperature:    +23°C"
+// `buf`: "Temperature:    +23°C"
 
 // Multiple format specifiers
 pico_snprintf(buf, sizeof(buf), "User: %s, ID: %04d", "Alice", 42);
-// buf: "User: Alice, ID: 0042"
+// `buf`: "User: Alice, ID: 0042"
 ```
 
 ## Replacing Standard Library Functions
 ```c
 #define snprintf pico_snprintf
 #define sprintf  pico_sprintf
-
 // Now `snprintf()` uses picoprintf instead of the standard library
+
 snprintf(buf, sizeof(buf), "Using picoprintf: %d", 123);
 ```
 
@@ -82,26 +86,17 @@ Control the code size and feature set by commenting and uncommenting macros in `
 | `PICOFORMAT_HANDLE_HEX` | Hex format: `%x`, `%X`, `%p` | Small |
 | `PICOFORMAT_HANDLE_FLOATS` | Float formats: `%f`, `%F`, `%e`, `%a` | Large |
 
-**Configuration example:**
-```c
-// picoprintf.h - uncomment features you need
-#define PICOFORMAT_HANDLE_FILL          // Enable width/padding
-#define PICOFORMAT_HANDLE_DYNAMIC_PRECISION // Enable dynamic precision
-#define PICOFORMAT_HANDLE_HEX           // Enable hexadecimal
-// #define PICOFORMAT_HANDLE_FLOATS     // Disable floats to save space in your binary
-```
-
 # Benchmarks and Alternatives
-**picoprintf** is compile-time customizable, allowing you to minimize its footprint.  The table below compares the code size (in bytes) of this and similar libraries, as measured by `.text` + `.rodata` segments in the `.map` file.
+The table below compares the _code size (in bytes)_ of this and similar libraries:
 
-|    target      | **picoprintf** min | **picoprintf** full | [mpaland](https://github.com/mpaland/printf) | [tinyprintf](https://github.com/cjlano/tinyprintf) | [nano-printf](https://github.com/charlesnicholson/nanoprintf) |
-| ---: | :---: | :---: | :---: | :---: | :---: |
-| ARM thumb gcc 13.3.0 |  544 | 1680 | 4438 | 1528 | 2388 |
-| ARM 32 gcc 13.3.0    |  928 | 2288 | 6962 | 2372 | 3764 |
-| ARM 64 gcc 13.3.0    | 1272 | 2892 | 6582 | 3200 | 4612 |
-| ARM 64 clang 17.0.0  |  696 | 2368 | 5846 | 2401 | 4066 |
-| x86 gcc 13.3.0       |  640 | 1761 | 5022 | 3649 | 3681 |
-| x64 gcc 13.3.0       |  911 | 2004 | 5974 | 3782 | 2676 |
+|    target      | **picoprintf** (min/full) |  [tinyprintf](https://github.com/cjlano/tinyprintf) (min/fll) | [nano-printf](https://github.com/charlesnicholson/nanoprintf) | [mpaland](https://github.com/mpaland/printf) |
+| ---: | :---: | :---: | :---: | :---: |
+| ARM thumb gcc 15.3.0 |  572 / 1724 |  968 / 1312 | 1760 | 3848 |
+| ARM 32 gcc 15.3.0    | 1040 / 2272 | 1480 / 1928 | 2748 | 5740 |
+| ARM 64 gcc 15.3.0    | 1508 / 3068 | 2380 / 3136 | 3892 | 6440 |
+| ARM 64 clang 17.0.0  |  876 / 2487 | 1736 / 2192 | 3288 | 2444 |
+| x86 gcc 13.3.0       |  825 / 1921 | 1379 / 1829 | 2701 | 4652 |
+| x64 gcc 13.3.0       | 1066 / 2096 | 1961 / 2486 | 3120 | 5669 |
 
 **Notes:**
 * "min": minimal config (chars, strings, decimal ints only)
@@ -113,7 +108,6 @@ Control the code size and feature set by commenting and uncommenting macros in `
 Copy the header and C file into your embedded project, build, and inspect the `.map` file for code size.
 
 ## macOS
-To build for native CPU:
 ```sh
 clang picoprintf.c picoatox.c picotest.c -Os -Wl,-map,pico.map
 ```

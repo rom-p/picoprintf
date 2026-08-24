@@ -7,6 +7,12 @@
     #include <math.h> // fabs()
 #endif
 
+// compiler-specific behavior for size optimization:
+#define __NANOPRINTF_PACK_FLAGS__ defined(__aarch64__)
+// note that __thumb__ platforms benefit from packing for some
+// configurations defined by PICOFORMAT_HANDLE, but not for the smallest ones
+
+
 static void flip(char *pLeft, char *pRight) {
     pRight--;
     while (pLeft < pRight) {
@@ -17,6 +23,7 @@ static void flip(char *pLeft, char *pRight) {
         pRight--;
     }
 }
+
 
 // using #define over `inline` for enabling porting to old C
 #if !defined(MIN)
@@ -40,7 +47,8 @@ int pico_vsnprintf(char *pDest, size_t cbDest, const char *pFormat, va_list vl) 
     const char *pBinaryDigits = pLowercaseNumberDigits;
 #endif
     char *pStart = pDest;
-    for (char *pEnd = pDest + cbDest - 1; *pFormat && pDest < pEnd; ) {
+    for (char *pEnd = (cbDest == 0) ? pDest : (pDest + cbDest - 1);
+         *pFormat && pDest < pEnd; ) {
         if (*pFormat != '%') {
             *pDest++ = *pFormat++;
         } else {                            // format starts here
@@ -54,7 +62,8 @@ int pico_vsnprintf(char *pDest, size_t cbDest, const char *pFormat, va_list vl) 
             #endif
                 int whole_chars = 0;        // number of chars in the whole part of the number
                 int decimal_chars = -1;     // if not specified, %f are rendered with 6, while %g are rendered with 0
-            #ifdef __aarch64__              // these platforms benefit from packing flags into a single variable
+
+            #ifdef __NANOPRINTF_PACK_FLAGS__// these platforms benefit from packing flags into a single variable
                 struct {
                     unsigned force_sign:1;
                     unsigned fill_zeros:1;
@@ -63,10 +72,10 @@ int pico_vsnprintf(char *pDest, size_t cbDest, const char *pFormat, va_list vl) 
                     unsigned seen_numbers:1;
                     unsigned treat_as_unsigned:1;
                     unsigned treat_as_long:1;
+                    unsigned treat_as_longlong:1;
                     unsigned render_in_lowercase:1;
                 } flags = {0};
                 #define FLAGS flags.
-
             #else                           // other platforms do not benefit from struct packing
                 unsigned force_sign = 0;
                 unsigned fill_zeros = 0;
@@ -77,11 +86,13 @@ int pico_vsnprintf(char *pDest, size_t cbDest, const char *pFormat, va_list vl) 
                 unsigned seen_numbers = 0;
                 unsigned treat_as_unsigned = 0;
                 unsigned treat_as_long = 0;
+                unsigned treat_as_longlong = 0;
                 #if defined(PICOFORMAT_HANDLE_HEX) || defined(PICOFORMAT_HANDLE_FLOATS)
                 unsigned render_in_lowercase = 0;
                 #endif
                 #define FLAGS
             #endif                          // struct packing platforms
+
                 for (; *pFormat && '\0' == format; pFormat++) {
                     switch (*pFormat) {
                 #ifdef PICOFORMAT_HANDLE_FORCEDSIGN
@@ -117,22 +128,24 @@ int pico_vsnprintf(char *pDest, size_t cbDest, const char *pFormat, va_list vl) 
                         FLAGS seen_numbers = FLAGS seen_period = 1;
                         decimal_chars = 0;
                         break;
-                #if defined(PICOFORMAT_HANDLE_FILL) || defined(PICOFORMAT_HANDLE_DYNAMIC_PRECISION)
-                    case '*':                        // dynamic width/precision: read value from arg list
+                    case '*':   // always eating the '*' after '%', even when dynamic precision is not enabled
+                        int tmp = va_arg(vl, int);
                 #ifdef PICOFORMAT_HANDLE_DYNAMIC_PRECISION
                         if (FLAGS seen_period) {
-                            decimal_chars = va_arg(vl, int);
+                            decimal_chars = tmp;
                             FLAGS seen_numbers = 1;
                             break;
                         }
                 #endif // PICOFORMAT_HANDLE_DYNAMIC_PRECISION
                 #ifdef PICOFORMAT_HANDLE_FILL
-                        whole_chars = va_arg(vl, int);
+                        whole_chars = tmp;
                         FLAGS seen_numbers = 1;
                 #endif // PICOFORMAT_HANDLE_FILL
                         break;
-                #endif // PICOFORMAT_HANDLE_FILL || PICOFORMAT_HANDLE_DYNAMIC_PRECISION
                     case 'l':    // long modifier
+                        if (FLAGS treat_as_long) {
+                            FLAGS treat_as_longlong = 1;
+                        }
                         FLAGS treat_as_long = 1;
                         break;
                     case 'u':    // unsigned decimal integer
@@ -229,11 +242,13 @@ int pico_vsnprintf(char *pDest, size_t cbDest, const char *pFormat, va_list vl) 
                 #endif // PICOFORMAT_HANDLE_FILL || PICOFORMAT_HANDLE_DYNAMIC_PRECISION
                     }
                     break;
-            #if defined(PICOFORMAT_HANDLE_HEX) || defined(PICOFORMAT_HANDLE_OCT) || defined(PICOFORMAT_HANDLE_BIN)
-                case 'b': {          // binary, oct, or hex integer, always unsigned
-                        long long int val = 0;
-                        if (FLAGS treat_as_long) {
-                            val = va_arg(vl, unsigned long long int);
+             #if defined(PICOFORMAT_HANDLE_HEX) || defined(PICOFORMAT_HANDLE_OCT) || defined(PICOFORMAT_HANDLE_BIN)
+                 case 'b': {          // binary, oct, or hex integer, always unsigned
+                        unsigned long long val = 0;
+                        if (FLAGS treat_as_longlong) {
+                            val = va_arg(vl, unsigned long long);
+                        } else if (FLAGS treat_as_long) {
+                            val = va_arg(vl, unsigned long);
                         } else {
                             val = va_arg(vl, unsigned);
                         }
@@ -264,16 +279,24 @@ int pico_vsnprintf(char *pDest, size_t cbDest, const char *pFormat, va_list vl) 
             #endif // defined(PICOFORMAT_HANDLE_BIN) || defined(PICOFORMAT_HANDLE_OCT) || defined(PICOFORMAT_HANDLE_HEX)
                 case 'd':           // decimal integer
                 case 'i': {
-                        long long int val = 0;
-                        if (FLAGS treat_as_long) {
+                        long long val = 0;
+                        unsigned long long uval = 0;
+                        int sign = 0;
+                        if (FLAGS treat_as_longlong) {
                             if (FLAGS treat_as_unsigned) {
-                                val = va_arg(vl, unsigned long long int);
+                                uval = va_arg(vl, unsigned long long);
                             } else {
-                                val = va_arg(vl, long long int);
+                                val = va_arg(vl, long long);
+                            }
+                        } else if (FLAGS treat_as_long) {
+                            if (FLAGS treat_as_unsigned) {
+                                uval = va_arg(vl, unsigned long);
+                            } else {
+                                val = va_arg(vl, long);
                             }
                         } else {
                             if (FLAGS treat_as_unsigned) {
-                                val = va_arg(vl, unsigned);
+                                uval = va_arg(vl, unsigned);
                             } else {
                                 val = va_arg(vl, int);
                             }
@@ -281,17 +304,21 @@ int pico_vsnprintf(char *pDest, size_t cbDest, const char *pFormat, va_list vl) 
                         char chSign = '\0';
                         if ((FLAGS force_sign || val < 0) && pDest < pEnd) {
                             chSign = val < 0 ? '-' : '+';
-                            val = llabs(val);
                             whole_chars--;
                         }
                         while (pDest < pEnd
                             && (pDest == pParamStarts
-                             || val
+                             || val || uval
                              || pDest - pParamStarts < whole_chars)) {
                             char ch;
-                            if (pDest == pParamStarts || 0 != val) {        // if first digit (i.e. zero) or there's still non-zero digits to write
-                                ch = val % 10 + '0';
-                                val /= 10;
+                            if (pDest == pParamStarts || 0 != val || 0 != uval) {// if first digit (i.e. zero) or there's still non-zero digits to write
+                                if (FLAGS treat_as_unsigned) {
+                                    ch = uval % 10 + '0';
+                                    uval /= 10;
+                                } else {
+                                    ch = abs(val % 10) + '0';
+                                    val /= 10;
+                                }
                             } else {
                                 if ('\0' != chSign && !FLAGS fill_zeros) {  // write a sign if filling with spaces, not with zeros
                                     *pDest++ = chSign;
@@ -326,13 +353,15 @@ int pico_vsnprintf(char *pDest, size_t cbDest, const char *pFormat, va_list vl) 
                                ; pDest < pEnd && *pszVal
                                ; *pDest++ = *pszVal++);
                         } else {
-                            if (decimal_chars == -1) {
+                            if (decimal_chars < 0) {
                                 if (format == 'g') {
                                     decimal_chars = 0;
                                 } else {
                                     decimal_chars = 6;
                                 }
                             }
+                            // Round before writing the whole part so a carry across the decimal point is preserved.
+                            val += .5f * pow(10.f, -decimal_chars);
                             whole_chars = MAX(0, whole_chars - decimal_chars);
                             whole_chars = MAX(whole_chars, pDest - pParamStarts + 1); // at least sign (if present) and first char
                             for (float digit = 1.f
@@ -344,7 +373,6 @@ int pico_vsnprintf(char *pDest, size_t cbDest, const char *pFormat, va_list vl) 
                             flip(pParamStarts, pDest);
                             if (decimal_chars && pDest < pEnd) {
                                 *pDest++ = '.';
-                                val += .5f * pow(10.f, -decimal_chars); // compensating for rounding error
                                 for (size_t digit = 0; pDest < pEnd && digit < decimal_chars; digit++) {
                                     val = (val - (int)(val)) * 10.f;
                                     *pDest++ = (int)(val) + '0';
